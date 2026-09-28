@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pufu | هوش مصنوعی خصوصی</title>
+<style>
+*{box-sizing:border-box;font-family:Vazirmatn,Tahoma,sans-serif}
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e1b4b,#0ea5e9);display:flex;align-items:center;justify-content:center;padding:20px;color:#fff}
+.card{width:100%;max-width:480px;background:rgba(255,255,255,.08);backdrop-filter:blur(15px);border:1px solid rgba(255,255,255,.15);border-radius:24px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center}
+.hidden{display:none!important}
+h1{margin:0 0 8px;font-size:26px}
+p.sub{opacity:.8;font-size:14px;margin-bottom:20px}
+input{width:100%;padding:14px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.3);color:#fff;font-size:16px;outline:none;text-align:center}
+input:focus{border-color:#38bdf8}
+button{width:100%;margin-top:14px;padding:14px;border:0;border-radius:14px;background:linear-gradient(90deg,#06b6d4,#6366f1);color:#fff;font-size:16px;font-weight:bold;cursor:pointer}
+button:hover{opacity:.9}
+button:disabled{opacity:.5;cursor:wait}
+.error{color:#fda4af;font-size:13px;margin-top:10px;min-height:20px}
+#chatPage{max-width:700px;height:85vh;display:flex;flex-direction:column;text-align:right}
+#messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px 4px;margin:16px 0}
+.msg{padding:12px 15px;border-radius:16px;max-width:85%;font-size:14.5px;line-height:1.9;white-space:pre-wrap;word-wrap:break-word}
+.user{background:#2563eb;align-self:flex-end;border-bottom-left-radius:4px}
+.ai{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.12);align-self:flex-start;border-bottom-right-radius:4px}
+.row{display:flex;gap:8px}
+.row input{text-align:right;flex:1}
+.row button{width:90px;margin:0}
+.typing{opacity:.6;font-style:italic}
+.header{display:flex;align-items:center;justify-content:space-between}
+.logout{background:rgba(255,255,255,.15);width:auto;padding:8px 16px;font-size:13px;margin:0}
+.topbtns{display:flex;gap:8px}
+.clear{background:rgba(255,255,255,.15);width:auto;padding:8px 16px;font-size:13px;margin:0}
+</style>
+</head>
+<body>
+<div class="card" id="loginPage">
+<h1>ورود خصوصی</h1>
+<p class="sub">برای ورود به هوش مصنوعی رمز عبور را وارد کنید</p>
+<input type="password" id="passInput" placeholder="رمز عبور...">
+<button onclick="checkPass()">ورود</button>
+<div class="error" id="err"></div>
+</div>
+<div class="card hidden" id="chatPage">
+<div class="header">
+<h1 style="font-size:20px">pufu</h1>
+<div class="topbtns">
+<button class="clear" onclick="clearMemory()">پاک کردن حافظه</button>
+<button class="logout" onclick="location.reload()">خروج</button>
+</div>
+</div>
+<div id="messages">
+<div class="msg ai">سلام! من pufu هستم. هر سوالی داری بپرس.</div>
+</div>
+<div class="row">
+<input id="userInput" placeholder="پیامت را بنویس..." onkeydown="if(event.key==='Enter')sendMsg()">
+<button id="sendBtn" onclick="sendMsg()">ارسال</button>
+</div>
+</div>
+<script>
+const PASSWORD = "ddmo";
+function checkPass(){
+  const v = document.getElementById('passInput').value.trim();
+  if(v === PASSWORD){
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('chatPage').classList.remove('hidden');
+  } else {
+    document.getElementById('err').textContent = "رمز اشتباه است! دوباره تلاش کن.";
+  }
+}
+
+// حافظه مکالمه - اینجا همه حرف ها ذخیره میشود
+let history = [
+  {role:"system", content:"تو pufu هستی، یک هوش مصنوعی فارسی زبان، صمیمی و باهوش. جواب ها را به فارسی بده و حرف های قبلی کاربر را به خاطر بسپار و در جواب ها از آن استفاده کن."}
+];
+
+function clearMemory(){
+  history = [history[0]];
+  document.getElementById('messages').innerHTML = '<div class="msg ai">حافظه پاک شد! من pufu هستم. از اول بپرس.</div>';
+}
+
+async function sendMsg(){
+  const input = document.getElementById('userInput');
+  const box = document.getElementById('messages');
+  const btn = document.getElementById('sendBtn');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = "";
+
+  history.push({role:"user", content:text});
+
+  const u = document.createElement('div');
+  u.className = 'msg user';
+  u.textContent = text;
+  box.appendChild(u);
+  box.scrollTop = box.scrollHeight;
+
+  const t = document.createElement('div');
+  t.className = 'msg ai typing';
+  t.textContent = "در حال فکر کردن...";
+  box.appendChild(t);
+  box.scrollTop = box.scrollHeight;
+  btn.disabled = true;
+
+  try{
+    const res = await fetch('https://text.pollinations.ai/openai', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: "openai",
+        messages: history
+      })
+    });
+    const data = await res.json();
+    const ans = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "جوابی نگرفتم، دوباره بپرس!";
+    history.push({role:"assistant", content: ans});
+    t.classList.remove('typing');
+    t.textContent = ans;
+  }catch(e){
+    history.pop();
+    t.classList.remove('typing');
+    t.textContent = "خطا در اتصال به اینترنت. دوباره تلاش کن.";
+  }
+  btn.disabled = false;
+  box.scrollTop = box.scrollHeight;
+}
+</script>
+</body>
+</html>
